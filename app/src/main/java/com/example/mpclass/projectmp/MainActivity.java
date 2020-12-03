@@ -97,15 +97,21 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                 return;
             }
             //이미지 해상도 줄이기
-            Bitmap resized_img = Bitmap.createScaledBitmap(src_img, (int) src_img.getWidth() / 2, (int) src_img.getHeight() / 2, true);
+            Bitmap resized_img = Bitmap.createScaledBitmap(src_img, (int) src_img.getWidth() / 8, (int) src_img.getHeight() / 8, true);
+            Log.i("Tacking Picture::","해상도 줄이기 완료 ");
             //썸네일 이미지를 180도 돌려주기
             Matrix mtx = new Matrix();
             mtx.postRotate(180);
-            Bitmap rotatedBitmap = Bitmap.createBitmap(resized_img, 0, 0, resized_img.getWidth(), resized_img.getHeight(), mtx, true);
+            Bitmap rotated_img = Bitmap.createBitmap(resized_img, 0, 0, resized_img.getWidth(), resized_img.getHeight(), mtx, true);
+            Log.i("Tacking Picture::","이미지 회전 완료 ");
             //다른 이미지 처리에서 쓰기 위해서 버퍼에 이미지 복사
-            buf_bitmap = rotatedBitmap;
+            buf_bitmap = rotated_img;
+            Log.i("Tacking Picture::","이미지 버퍼에 저장 완료 ");
             //이미지뷰에 처리한 이미지 담기
-            capturedImageHolder.setImageBitmap(rotatedBitmap);
+            capturedImageHolder.setImageBitmap(rotated_img);
+            Log.i("Tacking Picture::","이미지 뷰에 처리한 이미지 담기 완료 ");
+            Log.i("rotated_img::", "가로 = " + rotated_img.getWidth());
+            Log.i("rotated_img::", "세로 = " + rotated_img.getHeight());
         }
     };
 
@@ -120,13 +126,13 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                     break;
                 case 3:
                     Toast.makeText(MainActivity.this, "IO Test3", Toast.LENGTH_SHORT).show();
-                    mCamera.takePicture(null, null, pictureCallback);
                     break;
                 case 4:
                     Toast.makeText(MainActivity.this, "IO Test4", Toast.LENGTH_SHORT).show();
                     break;
                 case 5:
                     Toast.makeText(MainActivity.this, "IO Test5", Toast.LENGTH_SHORT).show();
+                    mCamera.takePicture(null, null, pictureCallback);
                     break;
             }
         }

@@ -56,7 +56,6 @@ public class JNIDriver implements JNIListener {
             try {
                 while(mConnectFlag) {
                     try {
-                        Log.e("test", "1");
                         onReceive(getInterrupt());
                         Thread.sleep(100);
                     } catch (InterruptedException e) {
