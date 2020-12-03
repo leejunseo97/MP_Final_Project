@@ -17,7 +17,8 @@
     <!-- 처리된 이미지 표시용 -->
     <ImageView
         android:id="@+id/processed_image"
-        android:layout_width="match_parent"
+        android:layout_gravity="center"
+        android:layout_width="wrap_content"
         android:layout_height="260dp"/>
 
     <!-- 심심해서 써봄 -->

@@ -1,30 +1,194 @@
 package com.example.mpclass.projectmp;
 
+//기본으로 있는 헤더들..
 import androidx.appcompat.app.AppCompatActivity;
-
+import android.hardware.Camera;
 import android.os.Bundle;
+import android.widget.ImageView;
 import android.widget.TextView;
 
-public class MainActivity extends AppCompatActivity {
+//로그
+import android.util.Log;
 
-    // Used to load the 'native-lib' library on application startup.
-    static {
-        System.loadLibrary("native-lib");
-    }
+//인터럽트 관련
+import android.os.Handler;
+import android.os.Message;
+
+//카메라 관련
+import android.graphics.Color;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.graphics.Bitmap;
+import android.hardware.Camera.PictureCallback;
+import android.view.View;
+import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.Toast;
+
+public class MainActivity extends AppCompatActivity implements JNIListener {
+    //이미지 버퍼
+    Bitmap buf_bitmap;
+
+    //카메라 관련
+    private Camera mCamera;
+    private CameraPreview mPreview;
+    private ImageView capturedImageHolder;
+
+    //버튼 인터럽트 관련
+    JNIDriver mDriver;
+    boolean mThreadRun = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Example of a call to a native method
-        TextView tv = findViewById(R.id.sample_text);
-        tv.setText(stringFromJNI());
+        //카메라 관련
+        mCamera = getCameraInstance(); //카메라 객체 생성
+        mCamera.setDisplayOrientation(180); //카메라 이미지를 180도 뒤집어 준다.
+
+        mPreview = new CameraPreview(this, mCamera); //카메라 프리뷰 객체 생성 및 할당
+        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview); //프레임레이아웃 객체 선언,생성,할당
+        preview.addView(mPreview); //프리뷰 객체와 프레임레이아웃 연결
+
+        capturedImageHolder = (ImageView) findViewById(R.id.processed_image); //이미지뷰 객체 생성 및 할당
+
+        //GPIO 버튼 이용 인터럽트 관련
+        mDriver = new JNIDriver();
+        mDriver.setListener(this);
+        if (mDriver.open("/dev/sm9s5422_interrupt") < 0) {
+            Toast.makeText(MainActivity.this, "Driver Open Failed", Toast.LENGTH_SHORT).show();
+            Log.e("MainActivity::", "인터럽트 드라이버 읽어오기 실패! ");
+        }
+
+        //당장은 안쓰지만 onClickListener 예시로 남겨놓는다.
+//        Button btn = (Button) findViewById((R.id.button_capture)); //버튼과 btn연결
+//        btn.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                mCamera.takePicture(null, null, pictureCallback); //클릭되면 콜백함수 실행
+//            }
+//        });
     }
 
-    /**
-     * A native method that is implemented by the 'native-lib' native library,
-     * which is packaged with this application.
-     */
-    public native String stringFromJNI();
+    //실제 카메라를 할당해주는 함수
+    public static Camera getCameraInstance() {
+        Camera c = null;
+        try {
+            c = Camera.open();
+        } catch (Exception e) {
+            Log.e("MainActivity::", "getCameraInstance()에러! ");
+        }
+        return c;
+    }
+
+
+    //콜백함수 정의 - 찍은 사진의 해상도를 줄여서 썸네일로 이미지뷰에 출력
+    PictureCallback pictureCallback = new PictureCallback() {
+        @Override
+        public void onPictureTaken(byte[] data, Camera camera) {
+            //카메라 이미지 받아오기
+            Bitmap src_img = BitmapFactory.decodeByteArray(data, 0, data.length);
+            Log.i("src_img::", "가로 = " + src_img.getWidth());
+            Log.i("src_img::", "세로 = " + src_img.getHeight());
+            if (src_img == null) {
+                Toast.makeText(MainActivity.this, "Captured image is empty", Toast.LENGTH_SHORT).show();
+                Log.e("MainActivity::", "캡처 이미지 없음!");
+                return;
+            }
+            //이미지 해상도 줄이기
+            Bitmap resized_img = Bitmap.createScaledBitmap(src_img, (int) src_img.getWidth() / 2, (int) src_img.getHeight() / 2, true);
+            //썸네일 이미지를 180도 돌려주기
+            Matrix mtx = new Matrix();
+            mtx.postRotate(180);
+            Bitmap rotatedBitmap = Bitmap.createBitmap(resized_img, 0, 0, resized_img.getWidth(), resized_img.getHeight(), mtx, true);
+            //다른 이미지 처리에서 쓰기 위해서 버퍼에 이미지 복사
+            buf_bitmap = rotatedBitmap;
+            //이미지뷰에 처리한 이미지 담기
+            capturedImageHolder.setImageBitmap(rotatedBitmap);
+        }
+    };
+
+    public Handler handler = new Handler() {
+        public void handleMessage(Message msg) {
+            switch (msg.arg1) {
+                case 1:
+                    Toast.makeText(MainActivity.this, "IO Test1", Toast.LENGTH_SHORT).show();
+                    break;
+                case 2:
+                    Toast.makeText(MainActivity.this, "IO Test2", Toast.LENGTH_SHORT).show();
+                    break;
+                case 3:
+                    Toast.makeText(MainActivity.this, "IO Test3", Toast.LENGTH_SHORT).show();
+                    mCamera.takePicture(null, null, pictureCallback);
+                    break;
+                case 4:
+                    Toast.makeText(MainActivity.this, "IO Test4", Toast.LENGTH_SHORT).show();
+                    break;
+                case 5:
+                    Toast.makeText(MainActivity.this, "IO Test5", Toast.LENGTH_SHORT).show();
+                    break;
+            }
+        }
+    };
+
+    //카메라 자원 반환 관련
+    private void releaseMediaRecorder() {
+        mCamera.lock();
+    }
+
+    private void releaseCamera() {
+        if (mCamera != null) {
+            mCamera.release();
+            mCamera = null;
+        }
+    }
+
+    //인터럽트 마무리 관련
+    @Override
+    protected void onPause() {
+        super.onPause();
+        releaseMediaRecorder();
+        releaseCamera();
+        mDriver.close();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+    }
+
+    @Override
+    public void onReceive(int val) {
+        Message text = Message.obtain();
+        text.arg1 = val;
+        handler.sendMessage(text);
+    }
 }
+
+//    PictureCallback pictureCallback = new PictureCallback() {
+//        @Override
+//        public void onPictureTaken(byte[] data, Camera camera) {
+//            Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+//            int w = bitmap.getWidth()/2;
+//            int h = bitmap.getHeight()/2;
+//
+//            Matrix mtx = new Matrix();
+//            mtx.postRotate(180); //캡처 화면을 180도 뒤집어 준다.
+//            Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, w, h, mtx, true);
+//
+//            Bitmap grayBitmap = toGray(rotatedBitmap); //그레이스케일 하는 부분
+//
+//            if(bitmap == null) {
+//                Toast.makeText(MainActivity.this, "Captured image is empty", Toast.LENGTH_SHORT).show();
+//                return;
+//            }
+//            capturedImageHolder.setImageBitmap(scaleDownBitmapImage(rotatedBitmap, 450, 300));
+//        }
+//    };
+
+//    //비트맵 크기 줄여주는 함수 (안하면 메모리 오류나서 캡처가 안된다.)
+//    private Bitmap scaleDownBitmapImage(Bitmap bitmap, int newWidth, int newHeight) {
+//        Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true);
+//        return resizedBitmap;
+//    }
