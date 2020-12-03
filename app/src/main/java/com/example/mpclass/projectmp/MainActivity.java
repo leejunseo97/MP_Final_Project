@@ -83,6 +83,37 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     }
 
 
+
+    public Handler handler = new Handler() {
+        public void handleMessage(Message msg) {
+            switch (msg.arg1) {
+                case 1:
+                    if(buf_bitmap == null) {
+                        Toast.makeText(MainActivity.this, "!! Take Picture fist !!", Toast.LENGTH_SHORT).show();
+                        Log.v("Gray Scale::", "회색화 할 이미지 없음!");
+                    }
+                    else {
+                        Toast.makeText(MainActivity.this, "Gray Scale", Toast.LENGTH_SHORT).show();
+                        capturedImageHolder.setImageBitmap(toGray(buf_bitmap));
+                    }
+                    break;
+                case 2:
+                    Toast.makeText(MainActivity.this, "Origianl Image", Toast.LENGTH_SHORT).show();
+                    break;
+                case 3:
+                    Toast.makeText(MainActivity.this, "Blur using CPU", Toast.LENGTH_SHORT).show();
+                    break;
+                case 4:
+                    Toast.makeText(MainActivity.this, "Blur using GPU", Toast.LENGTH_SHORT).show();
+                    break;
+                case 5:
+                    Toast.makeText(MainActivity.this, "Take Picture", Toast.LENGTH_SHORT).show();
+                    mCamera.takePicture(null, null, pictureCallback);
+                    break;
+            }
+        }
+    };
+
     //콜백함수 정의 - 찍은 사진의 해상도를 줄여서 썸네일로 이미지뷰에 출력
     PictureCallback pictureCallback = new PictureCallback() {
         @Override
@@ -115,28 +146,30 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         }
     };
 
-    public Handler handler = new Handler() {
-        public void handleMessage(Message msg) {
-            switch (msg.arg1) {
-                case 1:
-                    Toast.makeText(MainActivity.this, "IO Test1", Toast.LENGTH_SHORT).show();
-                    break;
-                case 2:
-                    Toast.makeText(MainActivity.this, "IO Test2", Toast.LENGTH_SHORT).show();
-                    break;
-                case 3:
-                    Toast.makeText(MainActivity.this, "IO Test3", Toast.LENGTH_SHORT).show();
-                    break;
-                case 4:
-                    Toast.makeText(MainActivity.this, "IO Test4", Toast.LENGTH_SHORT).show();
-                    break;
-                case 5:
-                    Toast.makeText(MainActivity.this, "IO Test5", Toast.LENGTH_SHORT).show();
-                    mCamera.takePicture(null, null, pictureCallback);
-                    break;
+    //비트맵 이미지를 회색조로 바꾸는 함수
+    private Bitmap toGray(Bitmap rgbImage) {
+        double redVal = 0.299;
+        double greenVal = 0.587;
+        double blueVal = 0.114;
+        int A, R, G, B, GRAY;
+        int pixel;
+        int w = rgbImage.getWidth();
+        int h = rgbImage.getHeight();
+        Bitmap grayImage = Bitmap.createBitmap(w,h, rgbImage.getConfig());
+
+        for(int i = 0; i<w; ++i) { //i++ 하면 안된다.
+            for(int j=0; j<h; ++j) { //j++ 하면 안된다.
+                pixel = rgbImage.getPixel(i,j);
+                A = Color.alpha(pixel);
+                R = Color.red(pixel);
+                G = Color.green(pixel);
+                B = Color.blue(pixel);
+                GRAY = (int) (redVal*R + greenVal*G + blueVal*B);
+                grayImage.setPixel(i, j, Color.argb(A,GRAY, GRAY, GRAY));
             }
         }
-    };
+        return grayImage;
+    }
 
     //카메라 자원 반환 관련
     private void releaseMediaRecorder() {
