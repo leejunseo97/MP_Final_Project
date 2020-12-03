@@ -90,7 +90,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                 case 1:
                     if(buf_bitmap == null) {
                         Toast.makeText(MainActivity.this, "!! Take Picture fist !!", Toast.LENGTH_SHORT).show();
-                        Log.v("Gray Scale::", "회색화 할 이미지 없음!");
+                        Log.i("Gray Scale::", "회색화 할 이미지 없음!");
                     }
                     else {
                         Toast.makeText(MainActivity.this, "Gray Scale", Toast.LENGTH_SHORT).show();
@@ -120,8 +120,8 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         public void onPictureTaken(byte[] data, Camera camera) {
             //카메라 이미지 받아오기
             Bitmap src_img = BitmapFactory.decodeByteArray(data, 0, data.length);
-            Log.i("src_img::", "가로 = " + src_img.getWidth());
-            Log.i("src_img::", "세로 = " + src_img.getHeight());
+            Log.i("Tacking Picture::", "원본 이미지 가로 = " + src_img.getWidth());
+            Log.i("Tacking Picture::", "원본 이미지 세로 = " + src_img.getHeight());
             if (src_img == null) {
                 Toast.makeText(MainActivity.this, "Captured image is empty", Toast.LENGTH_SHORT).show();
                 Log.e("MainActivity::", "캡처 이미지 없음!");
@@ -141,8 +141,8 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
             //이미지뷰에 처리한 이미지 담기
             capturedImageHolder.setImageBitmap(rotated_img);
             Log.i("Tacking Picture::","이미지 뷰에 처리한 이미지 담기 완료 ");
-            Log.i("rotated_img::", "가로 = " + rotated_img.getWidth());
-            Log.i("rotated_img::", "세로 = " + rotated_img.getHeight());
+            Log.i("Tacking Picture::", "처리된 이미지 가로 = " + rotated_img.getWidth());
+            Log.i("Tacking Picture::", "처리된 이미지 세로 = " + rotated_img.getHeight());
         }
     };
 
