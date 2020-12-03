@@ -35,8 +35,8 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     public native Bitmap GaussianBlurGPU(Bitmap bitmap);
 
     //이미지 버퍼
-    Bitmap buf_img;
     Bitmap org_img;
+    Bitmap buf_img;
 
     //카메라 관련
     private Camera mCamera;
@@ -96,28 +96,54 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     public Handler handler = new Handler() {
         public void handleMessage(Message msg) {
             switch (msg.arg1) {
-                case 1:
-                    if(buf_img == null) {
-                        Toast.makeText(MainActivity.this, "!! Take Picture fist !!", Toast.LENGTH_SHORT).show();
+                case 1: //그레이 스케일
+                    if(org_img == null) {
+                        Toast.makeText(MainActivity.this, "!! Take Picture first !!", Toast.LENGTH_SHORT).show();
                         Log.i("Gray Scale::", "회색화 할 이미지 없음!");
                     }
                     else {
                         Toast.makeText(MainActivity.this, "Gray Scale", Toast.LENGTH_SHORT).show();
+                        buf_img = Bitmap.createBitmap(org_img);
                         capturedImageHolder.setImageBitmap(toGray(buf_img));
+                        Log.i("Gray Scale::", "이미지 회색화 완료");
                     }
                     break;
-                case 2:
-                    Toast.makeText(MainActivity.this, "Origianl Image", Toast.LENGTH_SHORT).show();
+                case 2: //원본 이미지
+                    if(org_img == null) {
+                        Toast.makeText(MainActivity.this, "!! Take Picture first !!", Toast.LENGTH_SHORT).show();
+                        Log.i("Original Image::", "원본 이미지 없음!");
+                    }
+                    else {
+                        Toast.makeText(MainActivity.this, "Origianl Image", Toast.LENGTH_SHORT).show();
+                        capturedImageHolder.setImageBitmap(org_img);
+                    }
                     break;
-                case 3:
-                    Toast.makeText(MainActivity.this, "Blur using CPU", Toast.LENGTH_SHORT).show();
-
+                case 3: //씨비유 블러
+                    if(org_img == null) {
+                        Toast.makeText(MainActivity.this, "!! Take Picture first !!", Toast.LENGTH_SHORT).show();
+                        Log.i("Blur CPU::", "CPU blur 할 이미지 없음!");
+                    }
+                    else {
+                        buf_img = Bitmap.createBitmap(org_img);
+                        capturedImageHolder.setImageBitmap(GaussianBlurBitmap(buf_img));
+                        Log.i("Blur CPU::", "CPU blur 완료");
+                        Toast.makeText(MainActivity.this, "Blur using CPU", Toast.LENGTH_SHORT).show();
+                    }
                     break;
-                case 4:
-                    Toast.makeText(MainActivity.this, "Blur using GPU", Toast.LENGTH_SHORT).show();
+                case 4: //지피유 블러
+                    if(org_img == null) {
+                        Toast.makeText(MainActivity.this, "!! Take Picture first !!", Toast.LENGTH_SHORT).show();
+                        Log.i("Blur GPU::", "GPU blur 할 이미지 없음!");
+                    }
+                    else {
+                        Toast.makeText(MainActivity.this, "Blur using GPU", Toast.LENGTH_SHORT).show();
+                        buf_img = Bitmap.createBitmap(org_img);
+                        capturedImageHolder.setImageBitmap(GaussianBlurGPU(buf_img));
+                        Log.i("Blur GPU::", "GPU blur 완료!");
+                    }
                     break;
                 case 5:
-                    Toast.makeText(MainActivity.this, "Take Picture", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Taking Picture", Toast.LENGTH_SHORT).show();
                     mCamera.takePicture(null, null, pictureCallback);
                     break;
             }
@@ -146,7 +172,6 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
             Bitmap rotated_img = Bitmap.createBitmap(resized_img, 0, 0, resized_img.getWidth(), resized_img.getHeight(), mtx, true);
             Log.i("Tacking Picture::","이미지 회전 완료 ");
             //다른 이미지 처리에서 쓰기 위해서 버퍼에 이미지 복사
-            buf_img = rotated_img;
             org_img = rotated_img;
             Log.i("Tacking Picture::","이미지 버퍼에 저장 완료 ");
             //이미지뷰에 처리한 이미지 담기
