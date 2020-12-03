@@ -26,8 +26,17 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity implements JNIListener {
+
+    //OpenCL 드라이버 라이브러리 로드
+    static {
+        System.loadLibrary("OpenCLDriver");
+    }
+    public native Bitmap GaussianBlurBitmap(Bitmap bitmap);
+    public native Bitmap GaussianBlurGPU(Bitmap bitmap);
+
     //이미지 버퍼
-    Bitmap buf_bitmap;
+    Bitmap buf_img;
+    Bitmap org_img;
 
     //카메라 관련
     private Camera mCamera;
@@ -83,18 +92,18 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     }
 
 
-
+    //인터럽트 핸들
     public Handler handler = new Handler() {
         public void handleMessage(Message msg) {
             switch (msg.arg1) {
                 case 1:
-                    if(buf_bitmap == null) {
+                    if(buf_img == null) {
                         Toast.makeText(MainActivity.this, "!! Take Picture fist !!", Toast.LENGTH_SHORT).show();
                         Log.i("Gray Scale::", "회색화 할 이미지 없음!");
                     }
                     else {
                         Toast.makeText(MainActivity.this, "Gray Scale", Toast.LENGTH_SHORT).show();
-                        capturedImageHolder.setImageBitmap(toGray(buf_bitmap));
+                        capturedImageHolder.setImageBitmap(toGray(buf_img));
                     }
                     break;
                 case 2:
@@ -102,6 +111,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                     break;
                 case 3:
                     Toast.makeText(MainActivity.this, "Blur using CPU", Toast.LENGTH_SHORT).show();
+
                     break;
                 case 4:
                     Toast.makeText(MainActivity.this, "Blur using GPU", Toast.LENGTH_SHORT).show();
@@ -136,7 +146,8 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
             Bitmap rotated_img = Bitmap.createBitmap(resized_img, 0, 0, resized_img.getWidth(), resized_img.getHeight(), mtx, true);
             Log.i("Tacking Picture::","이미지 회전 완료 ");
             //다른 이미지 처리에서 쓰기 위해서 버퍼에 이미지 복사
-            buf_bitmap = rotated_img;
+            buf_img = rotated_img;
+            org_img = rotated_img;
             Log.i("Tacking Picture::","이미지 버퍼에 저장 완료 ");
             //이미지뷰에 처리한 이미지 담기
             capturedImageHolder.setImageBitmap(rotated_img);
