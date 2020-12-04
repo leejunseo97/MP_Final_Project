@@ -24,6 +24,7 @@ public class JNIDriver implements JNIListener {
     }
 
     public void setListener(JNIListener a) { mMainActivity = a; }
+
     public int open(String driver) {
         if(mConnectFlag) return -1;
         if(openDriver(driver)>0) {

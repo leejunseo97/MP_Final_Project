@@ -7,6 +7,8 @@ import android.os.Bundle;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+//LED
+import java.util.Arrays;
 //로그
 import android.util.Log;
 
@@ -37,7 +39,9 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     private native static int close_LED_Driver();
     private native static int write_LED_Driver(byte[] data, int length);
     boolean led_run;
+    boolean led_start;
     LedThread mLedThread;
+    byte[] led_array = {0,0,0,0, 0,0,0,0};
 
     //7_seg 드라이버
 
@@ -70,6 +74,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
             Log.e("LED::", "LED 드라이버 불러오기 실패!");
         }else Log.i("LED::", "LED 드라이버 불러오기 성공!");
         led_run = true;
+        led_start = false;
         mLedThread = new LedThread();
         mLedThread.start();
 
@@ -98,6 +103,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         Camera c = null;
         try {
             c = Camera.open();
+            Log.i("Camera::", "Camera.open() 성공 ");
         } catch (Exception e) {
             Log.e("Camera::", "getCameraInstance()에러! ");
         }
@@ -158,6 +164,8 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                 case 5:
                     Toast.makeText(MainActivity.this, "Taking Picture", Toast.LENGTH_SHORT).show();
                     mCamera.takePicture(null, null, pictureCallback);
+                    led_start = true;
+                    Log.i("LED::", "test0");
                     break;
             }
         }
@@ -199,9 +207,25 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     private class LedThread extends Thread {
         public void run() {
             super.run();
-            Log.i("LED::", "LED 쓰레드 실행중! ");
-            while (led_run) {
-
+            Log.i("LED::", "LED 쓰레드 실행! ");
+            while(led_run) {
+//                if (led_start) {
+//                    try {
+//                        for (int i = 0; i < 8; i++) {
+//                            led_array[i] = 1;
+//                        }
+//                        Log.i("LED::", "test1");
+//                        write_LED_Driver(led_array, led_array.length);
+//                        Log.i("LED::", "test2");
+//                        Thread.sleep(1000);
+//                        Log.i("LED::", "test3");
+//                    } catch(Exception e) {
+//                        e.printStackTrace();
+//                    }
+//                    Log.i("LED::", "test4");
+//                    led_start = false;
+//                    Log.i("LED::", "test5");
+//                }
             }
         }
     }

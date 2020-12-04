@@ -32,18 +32,18 @@ extern "C"
 JNIEXPORT jint JNICALL
 Java_com_example_mpclass_projectmp_MainActivity_open_1LED_1Driver(JNIEnv *env, jclass clazz,
                                                                   jstring path) {
-    LOGD("LED 드라이버 여는중");
+    LOGD("LED:: 드라이버 여는중");
     jboolean iscopy;
     const char *path_utf = env->GetStringUTFChars(path, &iscopy);
     fd1 = open(path_utf, O_WRONLY);
     (env)->ReleaseStringUTFChars(path, path_utf);
 
     if (fd1 < 0) {
-        LOGE("LED 드라이버 열기 오류!");
+        LOGE("LED:: 드라이버 열기 오류!");
         return -1;
     }
     else {
-        LOGD("LED 드라이버 잘 열림!");
+        LOGD("LED:: 드라이버 잘 열림!");
         return 1;
     }
 }
@@ -52,7 +52,7 @@ extern "C"
 JNIEXPORT jint JNICALL
 Java_com_example_mpclass_projectmp_MainActivity_close_1LED_1Driver(JNIEnv *env, jclass clazz) {
     if (fd1 > 0) {
-        LOGD("LED 드라이버 닫는다");
+        LOGD("LED:: 드라이버 닫는다");
         close(fd1);
     }
 }
@@ -61,11 +61,11 @@ extern "C"
 JNIEXPORT jint JNICALL
 Java_com_example_mpclass_projectmp_MainActivity_write_1LED_1Driver(JNIEnv *env, jclass clazz,
                                                                    jbyteArray data, jint length) {
-    LOGD("LED 쓰기 시작! ");
+    LOGD("LED:: 쓰기 시작! ");
     jbyte *chars = (env)->GetByteArrayElements( data, 0);
     if (fd1 > 0) write(fd1, (unsigned char *) chars, length);
     (env)->ReleaseByteArrayElements( data, chars, 0);
-    LOGD("LED 쓰기 완료!");
+    LOGD("LED:: 쓰기 완료!");
 }
 
 int opencl_infra_creation (cl_context &context,

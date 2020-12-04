@@ -4,27 +4,27 @@
 #include <jni.h>
 #include <string.h>
 
-int fd1 = 0;
+int fd = 0;
 
 JNIEXPORT jint JNICALL
 Java_com_example_mpclass_projectmp_JNIDriver_openDriver(JNIEnv *env, jclass clazz, jstring path) {
     jboolean iscopy;
     const char *path_utf = (*env)->GetStringUTFChars(env, path, &iscopy);
-    fd1 = open(path_utf, O_RDONLY);
+    fd = open(path_utf, O_RDONLY);
     (*env)->ReleaseStringUTFChars(env, path, path_utf);
-    if(fd1<0) return -1;
+    if(fd<0) return -1;
     else return 1;
 }
 
 JNIEXPORT void JNICALL
 Java_com_example_mpclass_projectmp_JNIDriver_closeDriver(JNIEnv *env, jclass clazz) {
-    if(fd1>0) close(fd1);
+    if(fd>0) close(fd);
 }
 
 JNIEXPORT jchar JNICALL
 Java_com_example_mpclass_projectmp_JNIDriver_readDriver(JNIEnv *env, jobject thiz) {
     char ch = 0;
-    if(fd1>0) read(fd1, &ch, 1);
+    if(fd>0) read(fd, &ch, 1);
     return ch;
 }
 
@@ -37,7 +37,7 @@ Java_com_example_mpclass_projectmp_JNIDriver_getInterrupt(JNIEnv *env, jobject t
     char* ch3 = "Left";
     char* ch4 = "Right";
     char* ch5 = "Center";
-    ret = read(fd1, &value, 100);
+    ret = read(fd, &value, 100);
 
     if(ret<0) return -1;
     else {
