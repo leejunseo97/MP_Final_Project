@@ -31,6 +31,21 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     static {
         System.loadLibrary("OpenCLDriver");
     }
+
+    //led 드라이버
+    private native static int open_LED_Driver(String path);
+    private native static int close_LED_Driver();
+    private native static int write_LED_Driver(byte[] data, int length);
+    boolean led_run;
+    LedThread mLedThread;
+
+    //7_seg 드라이버
+
+    //GPIO 버튼
+    JNIDriver mDriver;
+    boolean mThreadRun = true;
+
+    //OpenCL
     public native Bitmap GaussianBlurBitmap(Bitmap bitmap);
     public native Bitmap GaussianBlurGPU(Bitmap bitmap);
 
@@ -43,14 +58,20 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     private CameraPreview mPreview;
     private ImageView capturedImageHolder;
 
-    //버튼 인터럽트 관련
-    JNIDriver mDriver;
-    boolean mThreadRun = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        //LED - 드라이버 불러오고 쓰레드 객체 생성 후 실행
+        if (open_LED_Driver("/dev/sm9s5422_led") < 0) {
+            Toast.makeText(this, "LED Driver Open Failed", Toast.LENGTH_SHORT).show();
+            Log.e("LED::", "LED 드라이버 불러오기 실패!");
+        }else Log.i("LED::", "LED 드라이버 불러오기 성공!");
+        led_run = true;
+        mLedThread = new LedThread();
+        mLedThread.start();
 
         //카메라 관련
         mCamera = getCameraInstance(); //카메라 객체 생성
@@ -67,17 +88,9 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         mDriver.setListener(this);
         if (mDriver.open("/dev/sm9s5422_interrupt") < 0) {
             Toast.makeText(MainActivity.this, "Driver Open Failed", Toast.LENGTH_SHORT).show();
-            Log.e("MainActivity::", "인터럽트 드라이버 읽어오기 실패! ");
-        }
+            Log.e("GPIO::", "인터럽트 드라이버 읽어오기 실패! ");
+        } else Log.i("GPIO::", "인터럽트 드라이버 읽어오기 성공!");
 
-        //당장은 안쓰지만 onClickListener 예시로 남겨놓는다.
-//        Button btn = (Button) findViewById((R.id.button_capture)); //버튼과 btn연결
-//        btn.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                mCamera.takePicture(null, null, pictureCallback); //클릭되면 콜백함수 실행
-//            }
-//        });
     }
 
     //실제 카메라를 할당해주는 함수
@@ -86,13 +99,13 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         try {
             c = Camera.open();
         } catch (Exception e) {
-            Log.e("MainActivity::", "getCameraInstance()에러! ");
+            Log.e("Camera::", "getCameraInstance()에러! ");
         }
         return c;
     }
 
 
-    //인터럽트 핸들
+    //인터럽트 핸들러
     public Handler handler = new Handler() {
         public void handleMessage(Message msg) {
             switch (msg.arg1) {
@@ -150,7 +163,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         }
     };
 
-    //콜백함수 정의 - 찍은 사진의 해상도를 줄여서 썸네일로 이미지뷰에 출력
+    //콜백함수 정의 - 찍은 사진의 해상도를 줄여서 이미지뷰에 출력
     PictureCallback pictureCallback = new PictureCallback() {
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
@@ -181,6 +194,17 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
             Log.i("Tacking Picture::", "처리된 이미지 세로 = " + rotated_img.getHeight());
         }
     };
+
+    //LED 쓰레드
+    private class LedThread extends Thread {
+        public void run() {
+            super.run();
+            Log.i("LED::", "LED 쓰레드 실행중! ");
+            while (led_run) {
+
+            }
+        }
+    }
 
     //비트맵 이미지를 회색조로 바꾸는 함수
     private Bitmap toGray(Bitmap rgbImage) {
@@ -219,13 +243,17 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         }
     }
 
-    //인터럽트 마무리 관련
     @Override
     protected void onPause() {
         super.onPause();
         releaseMediaRecorder();
         releaseCamera();
         mDriver.close();
+
+        //LED
+        led_run = false;
+        mLedThread = null;
+        close_LED_Driver();
     }
 
     @Override
@@ -240,30 +268,3 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         handler.sendMessage(text);
     }
 }
-
-//    PictureCallback pictureCallback = new PictureCallback() {
-//        @Override
-//        public void onPictureTaken(byte[] data, Camera camera) {
-//            Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
-//            int w = bitmap.getWidth()/2;
-//            int h = bitmap.getHeight()/2;
-//
-//            Matrix mtx = new Matrix();
-//            mtx.postRotate(180); //캡처 화면을 180도 뒤집어 준다.
-//            Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, w, h, mtx, true);
-//
-//            Bitmap grayBitmap = toGray(rotatedBitmap); //그레이스케일 하는 부분
-//
-//            if(bitmap == null) {
-//                Toast.makeText(MainActivity.this, "Captured image is empty", Toast.LENGTH_SHORT).show();
-//                return;
-//            }
-//            capturedImageHolder.setImageBitmap(scaleDownBitmapImage(rotatedBitmap, 450, 300));
-//        }
-//    };
-
-//    //비트맵 크기 줄여주는 함수 (안하면 메모리 오류나서 캡처가 안된다.)
-//    private Bitmap scaleDownBitmapImage(Bitmap bitmap, int newWidth, int newHeight) {
-//        Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true);
-//        return resizedBitmap;
-//    }

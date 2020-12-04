@@ -1,15 +1,21 @@
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
 #include <jni.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <android/log.h>
 #include <android/bitmap.h>
-#include "CL/opencl.h"
 #include <math.h>
 #include <time.h>
-#include <string.h>
+#include "CL/opencl.h"
 
+#define LOG_TAG "DEBUG"
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 #define checkCL(expression) {  \
     cl_int err = (expression); \
@@ -19,9 +25,48 @@
     } \
 } \
 
-#define LOG_TAG "DEBUG"
-#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+
+int fd1 = 0;
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_example_mpclass_projectmp_MainActivity_open_1LED_1Driver(JNIEnv *env, jclass clazz,
+                                                                  jstring path) {
+    LOGD("LED 드라이버 여는중");
+    jboolean iscopy;
+    const char *path_utf = env->GetStringUTFChars(path, &iscopy);
+    fd1 = open(path_utf, O_WRONLY);
+    (env)->ReleaseStringUTFChars(path, path_utf);
+
+    if (fd1 < 0) {
+        LOGE("LED 드라이버 열기 오류!");
+        return -1;
+    }
+    else {
+        LOGD("LED 드라이버 잘 열림!");
+        return 1;
+    }
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_example_mpclass_projectmp_MainActivity_close_1LED_1Driver(JNIEnv *env, jclass clazz) {
+    if (fd1 > 0) {
+        LOGD("LED 드라이버 닫는다");
+        close(fd1);
+    }
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_example_mpclass_projectmp_MainActivity_write_1LED_1Driver(JNIEnv *env, jclass clazz,
+                                                                   jbyteArray data, jint length) {
+    LOGD("LED 쓰기 시작! ");
+    jbyte *chars = (env)->GetByteArrayElements( data, 0);
+    if (fd1 > 0) write(fd1, (unsigned char *) chars, length);
+    (env)->ReleaseByteArrayElements( data, chars, 0);
+    LOGD("LED 쓰기 완료!");
+}
 
 int opencl_infra_creation (cl_context &context,
                            cl_platform_id &cpPlatform,
