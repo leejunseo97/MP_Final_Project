@@ -27,6 +27,7 @@
 
 
 int fd1 = 0;
+int fd2 = 0;
 
 extern "C"
 JNIEXPORT jint JNICALL
@@ -68,6 +69,45 @@ Java_com_example_mpclass_projectmp_MainActivity_write_1LED_1Driver(JNIEnv *env, 
     LOGD("LED:: 쓰기 완료!");
     return 0;
 }
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_example_mpclass_projectmp_MainActivity_open_1SEG_1Driver(JNIEnv *env, jclass clazz,
+                                                                  jstring path) {
+    LOGD("SEG:: 드라이버 여는중!");
+    jboolean iscopy;
+    const char *path_utf = env->GetStringUTFChars(path, &iscopy);
+    fd2 = open(path_utf, O_WRONLY);
+    env->ReleaseStringUTFChars(path, path_utf);
+
+    if (fd2 < 0) {
+        LOGE("SEG 드라이버 열기 실패!");
+        return -1;
+    } else {
+        LOGD("SEG 드라이버 열기 성공!");
+        return 1;
+    }
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_example_mpclass_projectmp_MainActivity_close_1SEG_1Driver(JNIEnv *env, jclass clazz) {
+    if (fd2 > 0) close(fd2);
+    return 0;
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_example_mpclass_projectmp_MainActivity_write_1SEG_1Driver(JNIEnv *env, jclass clazz,
+                                                                   jbyteArray data, jint length) {
+    LOGD("SEG 드라이버 쓰기 시작!");
+    jbyte *chars = env->GetByteArrayElements(data, 0);
+    if (fd2 > 0) write(fd2, (unsigned char *) chars, length);
+    env->ReleaseByteArrayElements(data, chars, 0);
+    LOGD("SEG 드라이버 쓰기 완료!");
+    return 0;
+}
+
 
 int opencl_infra_creation (cl_context &context,
                            cl_platform_id &cpPlatform,

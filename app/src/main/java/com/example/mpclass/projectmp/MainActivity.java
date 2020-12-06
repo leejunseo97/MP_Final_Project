@@ -34,7 +34,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         System.loadLibrary("OpenCLDriver");
     }
 
-    //led 드라이버
+    //LED
     private native static int open_LED_Driver(String path);
     private native static int close_LED_Driver();
     public native static int write_LED_Driver(byte[] data, int length);
@@ -43,7 +43,13 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     LedThread mLedThread;
     byte[] led_array = {0,0,0,0, 0,0,0,0};
 
-    //7_seg 드라이버
+    //7SEG
+    private native static int open_SEG_Driver(String path);
+    private native static int close_SEG_Driver();
+    private native static int write_SEG_Driver(byte[] data, int length);
+    int data_int, i;
+    boolean seg_run, seg_start;
+    SegmentThread mSegThread;
 
     //GPIO 버튼
     JNIDriver mDriver;
@@ -77,6 +83,16 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         led_start = false;
         mLedThread = new LedThread();
         mLedThread.start();
+
+        //SEG - 드라이버 불러오고 쓰레드 객체 생성 후 실행
+        if(open_SEG_Driver("/dev/sm9s5422_segment")<0) {
+            Toast.makeText(MainActivity.this, "Driver Open Failed", Toast.LENGTH_SHORT).show();
+            Log.e("SEG::", "SEG 드라이버 불러오기 실패!");
+        } else Log.i("SEG::", "SEG 드라이버 불러오기 성공!");
+        seg_run = true;
+        seg_start = false;
+        mSegThread = new SegmentThread();
+        mSegThread.start();
 
         //카메라 관련
         mCamera = getCameraInstance(); //카메라 객체 생성
@@ -242,6 +258,18 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         }
     }
 
+    //SEG 쓰레드
+    private class SegmentThread extends Thread {
+        @Override
+        public void run() {
+            super.run();
+            Log.i("SEG::", "SEG 쓰레드 실행! ");
+            while(seg_run) {
+
+            }
+        }
+    }
+
     //비트맵 이미지를 회색조로 바꾸는 함수
     private Bitmap toGray(Bitmap rgbImage) {
         double redVal = 0.299;
@@ -290,6 +318,11 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         led_run = false;
         mLedThread = null;
         close_LED_Driver();
+
+        //SEG
+        seg_run = false;
+        mSegThread = null;
+        close_SEG_Driver();
     }
 
     @Override
