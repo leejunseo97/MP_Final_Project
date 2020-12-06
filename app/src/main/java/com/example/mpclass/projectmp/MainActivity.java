@@ -47,9 +47,11 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     private native static int open_SEG_Driver(String path);
     private native static int close_SEG_Driver();
     private native static int write_SEG_Driver(byte[] data, int length);
-    int data_int, i;
     boolean seg_run, seg_start;
     SegmentThread mSegThread;
+    float start_t, end_t;
+    int sub_t;
+    byte[] seg_array = {0,0,0, 0,0,0};
 
     //GPIO 버튼
     JNIDriver mDriver;
@@ -127,6 +129,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     }
 
 
+
     //인터럽트 핸들러
     public Handler handler = new Handler() {
         public void handleMessage(Message msg) {
@@ -137,10 +140,15 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                         Log.i("Gray Scale::", "회색화 할 이미지 없음!");
                     }
                     else {
+                        seg_start = false;
                         Toast.makeText(MainActivity.this, "Gray Scale", Toast.LENGTH_SHORT).show();
                         buf_img = Bitmap.createBitmap(org_img);
+                        start_t = (float)System.nanoTime()/1000000;
                         capturedImageHolder.setImageBitmap(toGray(buf_img));
+                        end_t = (float)System.nanoTime()/1000000;
+                        sub_t = (int)(end_t - start_t);
                         Log.i("Gray Scale::", "이미지 회색화 완료");
+                        seg_start = true;
                     }
                     break;
                 case 2: //원본 이미지
@@ -153,16 +161,22 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                         capturedImageHolder.setImageBitmap(org_img);
                     }
                     break;
-                case 3: //씨비유 블러
+                case 3: //씨피유 블러
                     if(org_img == null) {
                         Toast.makeText(MainActivity.this, "!! Take Picture first !!", Toast.LENGTH_SHORT).show();
                         Log.i("Blur CPU::", "CPU blur 할 이미지 없음!");
                     }
                     else {
+                        seg_start = false;
                         buf_img = Bitmap.createBitmap(org_img);
-                        capturedImageHolder.setImageBitmap(GaussianBlurBitmap(buf_img));
+                        start_t = (float)System.nanoTime()/1000000;
+                        buf_img = GaussianBlurBitmap(buf_img);
+                        end_t = (float)System.nanoTime()/1000000;
+                        sub_t = (int)(end_t - start_t);
+                        capturedImageHolder.setImageBitmap(buf_img);
                         Log.i("Blur CPU::", "CPU blur 완료");
                         Toast.makeText(MainActivity.this, "Blur using CPU", Toast.LENGTH_SHORT).show();
+                        seg_start = true;
                     }
                     break;
                 case 4: //지피유 블러
@@ -171,17 +185,28 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                         Log.i("Blur GPU::", "GPU blur 할 이미지 없음!");
                     }
                     else {
+                        seg_start = false;
                         Toast.makeText(MainActivity.this, "Blur using GPU", Toast.LENGTH_SHORT).show();
                         buf_img = Bitmap.createBitmap(org_img);
-                        capturedImageHolder.setImageBitmap(GaussianBlurGPU(buf_img));
+                        start_t = (float)System.nanoTime()/1000000;
+                        buf_img = GaussianBlurGPU(buf_img);
+                        end_t = (float)System.nanoTime()/1000000;
+                        sub_t = (int)(end_t - start_t);
+                        capturedImageHolder.setImageBitmap(buf_img);
                         Log.i("Blur GPU::", "GPU blur 완료!");
+                        seg_start = true;
                     }
                     break;
                 case 5:
+                    seg_start = false;
                     Toast.makeText(MainActivity.this, "Taking Picture", Toast.LENGTH_SHORT).show();
+                    start_t = (float)System.nanoTime()/1000000;
                     mCamera.takePicture(null, null, pictureCallback);
+                    end_t = (float)System.nanoTime()/1000000;
+                    sub_t = (int)(end_t - start_t);
                     led_start = true;
                     Log.i("LED::", "test0");
+                    seg_start = true;
                     break;
             }
         }
@@ -265,6 +290,20 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
             super.run();
             Log.i("SEG::", "SEG 쓰레드 실행! ");
             while(seg_run) {
+                if(seg_start = false) {
+                    for(int i=0; i<6; i++) {
+                        seg_array[i] = 0;
+                    }
+                    write_SEG_Driver(seg_array, seg_array.length);
+                } else {
+                    seg_array[0] = (byte) (sub_t % 1000000 / 100000);
+                    seg_array[1] = (byte) (sub_t % 100000 / 10000);
+                    seg_array[2] = (byte) (sub_t % 10000 / 1000);
+                    seg_array[3] = (byte) (sub_t % 1000 / 100);
+                    seg_array[4] = (byte) (sub_t % 100 / 10);
+                    seg_array[5] = (byte) (sub_t % 10);
+                    write_SEG_Driver(seg_array, seg_array.length);
+                }
 
             }
         }

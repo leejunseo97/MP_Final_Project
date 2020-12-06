@@ -93,6 +93,7 @@ extern "C"
 JNIEXPORT jint JNICALL
 Java_com_example_mpclass_projectmp_MainActivity_close_1SEG_1Driver(JNIEnv *env, jclass clazz) {
     if (fd2 > 0) close(fd2);
+    LOGD("SEG:: 드라이버 닫는다");
     return 0;
 }
 
