@@ -55,17 +55,18 @@ Java_com_example_mpclass_projectmp_MainActivity_close_1LED_1Driver(JNIEnv *env, 
         LOGD("LED:: 드라이버 닫는다");
         close(fd1);
     }
+    return 0;
 }
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_com_example_mpclass_projectmp_MainActivity_write_1LED_1Driver(JNIEnv *env, jclass clazz,
-                                                                   jbyteArray data, jint length) {
+Java_com_example_mpclass_projectmp_MainActivity_write_1LED_1Driver(JNIEnv *env, jclass clazz, jbyteArray data, jint length) {
     LOGD("LED:: 쓰기 시작! ");
     jbyte *chars = (env)->GetByteArrayElements( data, 0);
     if (fd1 > 0) write(fd1, (unsigned char *) chars, length);
     (env)->ReleaseByteArrayElements( data, chars, 0);
     LOGD("LED:: 쓰기 완료!");
+    return 0;
 }
 
 int opencl_infra_creation (cl_context &context,
