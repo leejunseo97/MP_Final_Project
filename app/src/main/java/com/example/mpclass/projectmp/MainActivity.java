@@ -210,21 +210,33 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
             Log.i("LED::", "LED 쓰레드 실행! ");
             while(led_run) {
                 if (led_start) {
-                    try {
-                        for (int i = 0; i < 8; i++) {
-                            led_array[i] = 1;
+                    for(int j=0; j<4;j++) {
+                        for (int i = 0; i < 4; i++) {
+                            led_array[2 * i] = 0;
+                            led_array[2 * i + 1] = 1;
                         }
-                        Log.i("LED::", "test1");
                         write_LED_Driver(led_array, led_array.length);
-                        Log.i("LED::", "test2");
-                        Thread.sleep(1000);
-                        Log.i("LED::", "test3");
-                    } catch(Exception e) {
-                        e.printStackTrace();
+                        try {
+                            Thread.sleep(200);
+                        } catch(Exception e) {
+                            e.printStackTrace();
+                        }
+                        for (int i = 0; i < 4; i++) {
+                            led_array[2 * i] = 1;
+                            led_array[2 * i + 1] = 0;
+                        }
+                        write_LED_Driver(led_array, led_array.length);
+                        try {
+                            Thread.sleep(200);
+                        } catch(Exception e) {
+                            e.printStackTrace();
+                        }
                     }
-                    Log.i("LED::", "test4");
+                    for(int i=0;i<8;i++) {
+                        led_array[i] = 0;
+                    }
+                    write_LED_Driver(led_array, led_array.length);
                     led_start = false;
-                    Log.i("LED::", "test5");
                 }
             }
         }
