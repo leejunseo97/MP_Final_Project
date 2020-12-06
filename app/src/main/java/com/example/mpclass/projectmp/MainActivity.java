@@ -38,20 +38,20 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     private native static int open_LED_Driver(String path);
     private native static int close_LED_Driver();
     public native static int write_LED_Driver(byte[] data, int length);
-    boolean led_run;
-    boolean led_start;
+    static boolean led_run;
+    static boolean led_start;
     LedThread mLedThread;
-    byte[] led_array = {0,0,0,0, 0,0,0,0};
+    static byte[] led_array = {0,0,0,0, 0,0,0,0};
 
     //7SEG
     private native static int open_SEG_Driver(String path);
     private native static int close_SEG_Driver();
     private native static int write_SEG_Driver(byte[] data, int length);
-    boolean seg_run, seg_start;
+    static boolean seg_run;
     SegmentThread mSegThread;
-    float start_t, end_t;
-    int sub_t;
-    byte[] seg_array = {0,0,0, 0,0,0};
+    static float start_t, end_t;
+    static int sub_t;
+    static byte[] seg_array = {0,0,0, 0,0,0};
 
     //GPIO 버튼
     JNIDriver mDriver;
@@ -62,57 +62,19 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     public native Bitmap GaussianBlurGPU(Bitmap bitmap);
 
     //이미지 버퍼
-    Bitmap org_img;
-    Bitmap buf_img;
+    static Bitmap org_img;
+    static Bitmap buf_img;
 
     //카메라 관련
-    private Camera mCamera;
-    private CameraPreview mPreview;
-    private ImageView capturedImageHolder;
+    private static Camera mCamera;
+    private static CameraPreview mPreview;
+    private static ImageView capturedImageHolder;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        //LED - 드라이버 불러오고 쓰레드 객체 생성 후 실행
-        if (open_LED_Driver("/dev/sm9s5422_led") < 0) {
-            Toast.makeText(this, "LED Driver Open Failed", Toast.LENGTH_SHORT).show();
-            Log.e("LED::", "LED 드라이버 불러오기 실패!");
-        }else Log.i("LED::", "LED 드라이버 불러오기 성공!");
-        led_run = true;
-        led_start = false;
-        mLedThread = new LedThread();
-        mLedThread.start();
-
-        //SEG - 드라이버 불러오고 쓰레드 객체 생성 후 실행
-        if(open_SEG_Driver("/dev/sm9s5422_segment")<0) {
-            Toast.makeText(MainActivity.this, "Driver Open Failed", Toast.LENGTH_SHORT).show();
-            Log.e("SEG::", "SEG 드라이버 불러오기 실패!");
-        } else Log.i("SEG::", "SEG 드라이버 불러오기 성공!");
-        seg_run = true;
-        seg_start = false;
-        mSegThread = new SegmentThread();
-        mSegThread.start();
-
-        //카메라 관련
-        mCamera = getCameraInstance(); //카메라 객체 생성
-        mCamera.setDisplayOrientation(180); //카메라 이미지를 180도 뒤집어 준다.
-
-        mPreview = new CameraPreview(this, mCamera); //카메라 프리뷰 객체 생성 및 할당
-        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview); //프레임레이아웃 객체 선언,생성,할당
-        preview.addView(mPreview); //프리뷰 객체와 프레임레이아웃 연결
-
-        capturedImageHolder = (ImageView) findViewById(R.id.processed_image); //이미지뷰 객체 생성 및 할당
-
-        //GPIO 버튼 이용 인터럽트 관련
-        mDriver = new JNIDriver();
-        mDriver.setListener(this);
-        if (mDriver.open("/dev/sm9s5422_interrupt") < 0) {
-            Toast.makeText(MainActivity.this, "Driver Open Failed", Toast.LENGTH_SHORT).show();
-            Log.e("GPIO::", "인터럽트 드라이버 읽어오기 실패! ");
-        } else Log.i("GPIO::", "인터럽트 드라이버 읽어오기 성공!");
 
     }
 
@@ -128,8 +90,6 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         return c;
     }
 
-
-
     //인터럽트 핸들러
     public Handler handler = new Handler() {
         public void handleMessage(Message msg) {
@@ -140,7 +100,6 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                         Log.i("Gray Scale::", "회색화 할 이미지 없음!");
                     }
                     else {
-                        seg_start = false;
                         Toast.makeText(MainActivity.this, "Gray Scale", Toast.LENGTH_SHORT).show();
                         buf_img = Bitmap.createBitmap(org_img);
                         start_t = (float)System.nanoTime()/1000000;
@@ -148,7 +107,6 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                         end_t = (float)System.nanoTime()/1000000;
                         sub_t = (int)(end_t - start_t);
                         Log.i("Gray Scale::", "이미지 회색화 완료");
-                        seg_start = true;
                     }
                     break;
                 case 2: //원본 이미지
@@ -159,6 +117,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                     else {
                         Toast.makeText(MainActivity.this, "Origianl Image", Toast.LENGTH_SHORT).show();
                         capturedImageHolder.setImageBitmap(org_img);
+                        sub_t = 0;
                     }
                     break;
                 case 3: //씨피유 블러
@@ -167,7 +126,6 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                         Log.i("Blur CPU::", "CPU blur 할 이미지 없음!");
                     }
                     else {
-                        seg_start = false;
                         buf_img = Bitmap.createBitmap(org_img);
                         start_t = (float)System.nanoTime()/1000000;
                         buf_img = GaussianBlurBitmap(buf_img);
@@ -176,7 +134,6 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                         capturedImageHolder.setImageBitmap(buf_img);
                         Log.i("Blur CPU::", "CPU blur 완료");
                         Toast.makeText(MainActivity.this, "Blur using CPU", Toast.LENGTH_SHORT).show();
-                        seg_start = true;
                     }
                     break;
                 case 4: //지피유 블러
@@ -185,7 +142,6 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                         Log.i("Blur GPU::", "GPU blur 할 이미지 없음!");
                     }
                     else {
-                        seg_start = false;
                         Toast.makeText(MainActivity.this, "Blur using GPU", Toast.LENGTH_SHORT).show();
                         buf_img = Bitmap.createBitmap(org_img);
                         start_t = (float)System.nanoTime()/1000000;
@@ -194,19 +150,15 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                         sub_t = (int)(end_t - start_t);
                         capturedImageHolder.setImageBitmap(buf_img);
                         Log.i("Blur GPU::", "GPU blur 완료!");
-                        seg_start = true;
                     }
                     break;
                 case 5:
-                    seg_start = false;
                     Toast.makeText(MainActivity.this, "Taking Picture", Toast.LENGTH_SHORT).show();
                     start_t = (float)System.nanoTime()/1000000;
                     mCamera.takePicture(null, null, pictureCallback);
                     end_t = (float)System.nanoTime()/1000000;
                     sub_t = (int)(end_t - start_t);
                     led_start = true;
-                    Log.i("LED::", "test0");
-                    seg_start = true;
                     break;
             }
         }
@@ -290,20 +242,13 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
             super.run();
             Log.i("SEG::", "SEG 쓰레드 실행! ");
             while(seg_run) {
-                if(seg_start = false) {
-                    for(int i=0; i<6; i++) {
-                        seg_array[i] = 0;
-                    }
-                    write_SEG_Driver(seg_array, seg_array.length);
-                } else {
-                    seg_array[0] = (byte) (sub_t % 1000000 / 100000);
-                    seg_array[1] = (byte) (sub_t % 100000 / 10000);
-                    seg_array[2] = (byte) (sub_t % 10000 / 1000);
-                    seg_array[3] = (byte) (sub_t % 1000 / 100);
-                    seg_array[4] = (byte) (sub_t % 100 / 10);
-                    seg_array[5] = (byte) (sub_t % 10);
-                    write_SEG_Driver(seg_array, seg_array.length);
-                }
+                seg_array[0] = (byte) (sub_t % 1000000 / 100000);
+                seg_array[1] = (byte) (sub_t % 100000 / 10000);
+                seg_array[2] = (byte) (sub_t % 10000 / 1000);
+                seg_array[3] = (byte) (sub_t % 1000 / 100);
+                seg_array[4] = (byte) (sub_t % 100 / 10);
+                seg_array[5] = (byte) (sub_t % 10);
+                write_SEG_Driver(seg_array, seg_array.length); //함수 실행하는데 10ms 정도 걸린다. 위의 계산도 시간이 걸리긴 함
 
             }
         }
@@ -367,6 +312,42 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     @Override
     protected void onResume() {
         super.onResume();
+        //LED - 드라이버 불러오고 쓰레드 객체 생성 후 실행
+        if (open_LED_Driver("/dev/sm9s5422_led") < 0) {
+            Toast.makeText(this, "LED Driver Open Failed", Toast.LENGTH_SHORT).show();
+            Log.e("LED::", "LED 드라이버 불러오기 실패!");
+        }else Log.i("LED::", "LED 드라이버 불러오기 성공!");
+        led_run = true;
+        led_start = false;
+        mLedThread = new LedThread();
+        mLedThread.start();
+
+        //SEG - 드라이버 불러오고 쓰레드 객체 생성 후 실행
+        if(open_SEG_Driver("/dev/sm9s5422_segment")<0) {
+            Toast.makeText(MainActivity.this, "Driver Open Failed", Toast.LENGTH_SHORT).show();
+            Log.e("SEG::", "SEG 드라이버 불러오기 실패!");
+        } else Log.i("SEG::", "SEG 드라이버 불러오기 성공!");
+        seg_run = true;
+        mSegThread = new SegmentThread();
+        mSegThread.start();
+
+        //카메라 관련
+        mCamera = getCameraInstance(); //카메라 객체 생성
+        mCamera.setDisplayOrientation(180); //카메라 이미지를 180도 뒤집어 준다.
+
+        mPreview = new CameraPreview(this, mCamera); //카메라 프리뷰 객체 생성 및 할당
+        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview); //프레임레이아웃 객체 선언,생성,할당
+        preview.addView(mPreview); //프리뷰 객체와 프레임레이아웃 연결
+
+        capturedImageHolder = (ImageView) findViewById(R.id.processed_image); //이미지뷰 객체 생성 및 할당
+
+        //GPIO 버튼 이용 인터럽트 관련
+        mDriver = new JNIDriver();
+        mDriver.setListener(this);
+        if (mDriver.open("/dev/sm9s5422_interrupt") < 0) {
+            Toast.makeText(MainActivity.this, "Driver Open Failed", Toast.LENGTH_SHORT).show();
+            Log.e("GPIO::", "인터럽트 드라이버 읽어오기 실패! ");
+        } else Log.i("GPIO::", "인터럽트 드라이버 읽어오기 성공!");
     }
 
     @Override
