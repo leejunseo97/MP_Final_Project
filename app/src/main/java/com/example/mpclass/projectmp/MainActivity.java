@@ -1,7 +1,9 @@
 package com.example.mpclass.projectmp;
 
 //기본으로 있는 헤더들..
+
 import androidx.appcompat.app.AppCompatActivity;
+
 import android.hardware.Camera;
 import android.os.Bundle;
 import android.widget.ImageView;
@@ -27,31 +29,55 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
+//OpenCV 관련
+import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
+import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
+
 public class MainActivity extends AppCompatActivity implements JNIListener {
 
     //OpenCL 드라이버 라이브러리 로드
     static {
         System.loadLibrary("OpenCLDriver");
+        System.loadLibrary("OpenCV");
     }
+
+    //OpenCV
+    private native static Mat detect_Edge(Mat mat);
+
+    private native static Mat detect_Traffic(Mat mat);
+
+    private native static Mat detect_Direction(Mat mat);
+
+    private static Mat input_img;
+    private static Mat output_img;
+
 
     //LED
     private native static int open_LED_Driver(String path);
+
     private native static int close_LED_Driver();
+
     public native static int write_LED_Driver(byte[] data, int length);
+
     static boolean led_run;
     static boolean led_start;
     LedThread mLedThread;
-    static byte[] led_array = {0,0,0,0, 0,0,0,0};
+    static byte[] led_array = {0, 0, 0, 0, 0, 0, 0, 0};
 
     //7SEG
     private native static int open_SEG_Driver(String path);
+
     private native static int close_SEG_Driver();
+
     private native static int write_SEG_Driver(byte[] data, int length);
+
     static boolean seg_run;
     SegmentThread mSegThread;
     static float start_t, end_t;
     static int sub_t;
-    static byte[] seg_array = {0,0,0, 0,0,0};
+    static byte[] seg_array = {0, 0, 0, 0, 0, 0};
 
     //GPIO 버튼
     JNIDriver mDriver;
@@ -59,6 +85,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
 
     //OpenCL
     public native Bitmap GaussianBlurBitmap(Bitmap bitmap);
+
     public native Bitmap GaussianBlurGPU(Bitmap bitmap);
 
     //이미지 버퍼
@@ -95,69 +122,65 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         public void handleMessage(Message msg) {
             switch (msg.arg1) {
                 case 1: //그레이 스케일
-                    if(org_img == null) {
+                    if (org_img == null) {
                         Toast.makeText(MainActivity.this, "!! Take Picture first !!", Toast.LENGTH_SHORT).show();
                         Log.i("Gray Scale::", "회색화 할 이미지 없음!");
-                    }
-                    else {
+                    } else {
                         Toast.makeText(MainActivity.this, "Gray Scale", Toast.LENGTH_SHORT).show();
                         buf_img = Bitmap.createBitmap(org_img);
-                        start_t = (float)System.nanoTime()/1000000;
+                        start_t = (float) System.nanoTime() / 1000000;
                         capturedImageHolder.setImageBitmap(toGray(buf_img));
-                        end_t = (float)System.nanoTime()/1000000;
-                        sub_t = (int)(end_t - start_t);
+                        end_t = (float) System.nanoTime() / 1000000;
+                        sub_t = (int) (end_t - start_t);
                         Log.i("Gray Scale::", "이미지 회색화 완료");
                     }
                     break;
                 case 2: //원본 이미지
-                    if(org_img == null) {
+                    if (org_img == null) {
                         Toast.makeText(MainActivity.this, "!! Take Picture first !!", Toast.LENGTH_SHORT).show();
                         Log.i("Original Image::", "원본 이미지 없음!");
-                    }
-                    else {
+                    } else {
                         Toast.makeText(MainActivity.this, "Origianl Image", Toast.LENGTH_SHORT).show();
                         capturedImageHolder.setImageBitmap(org_img);
                         sub_t = 0;
                     }
                     break;
                 case 3: //씨피유 블러
-                    if(org_img == null) {
+                    if (org_img == null) {
                         Toast.makeText(MainActivity.this, "!! Take Picture first !!", Toast.LENGTH_SHORT).show();
                         Log.i("Blur CPU::", "CPU blur 할 이미지 없음!");
-                    }
-                    else {
+                    } else {
                         buf_img = Bitmap.createBitmap(org_img);
-                        start_t = (float)System.nanoTime()/1000000;
+                        start_t = (float) System.nanoTime() / 1000000;
                         buf_img = GaussianBlurBitmap(buf_img);
-                        end_t = (float)System.nanoTime()/1000000;
-                        sub_t = (int)(end_t - start_t);
+                        end_t = (float) System.nanoTime() / 1000000;
+                        sub_t = (int) (end_t - start_t);
                         capturedImageHolder.setImageBitmap(buf_img);
                         Log.i("Blur CPU::", "CPU blur 완료");
                         Toast.makeText(MainActivity.this, "Blur using CPU", Toast.LENGTH_SHORT).show();
                     }
                     break;
                 case 4: //지피유 블러
-                    if(org_img == null) {
+                    if (org_img == null) {
                         Toast.makeText(MainActivity.this, "!! Take Picture first !!", Toast.LENGTH_SHORT).show();
                         Log.i("Blur GPU::", "GPU blur 할 이미지 없음!");
-                    }
-                    else {
+                    } else {
                         Toast.makeText(MainActivity.this, "Blur using GPU", Toast.LENGTH_SHORT).show();
                         buf_img = Bitmap.createBitmap(org_img);
-                        start_t = (float)System.nanoTime()/1000000;
+                        start_t = (float) System.nanoTime() / 1000000;
                         buf_img = GaussianBlurGPU(buf_img);
-                        end_t = (float)System.nanoTime()/1000000;
-                        sub_t = (int)(end_t - start_t);
+                        end_t = (float) System.nanoTime() / 1000000;
+                        sub_t = (int) (end_t - start_t);
                         capturedImageHolder.setImageBitmap(buf_img);
                         Log.i("Blur GPU::", "GPU blur 완료!");
                     }
                     break;
                 case 5:
                     Toast.makeText(MainActivity.this, "Taking Picture", Toast.LENGTH_SHORT).show();
-                    start_t = (float)System.nanoTime()/1000000;
+                    start_t = (float) System.nanoTime() / 1000000;
                     mCamera.takePicture(null, null, pictureCallback);
-                    end_t = (float)System.nanoTime()/1000000;
-                    sub_t = (int)(end_t - start_t);
+                    end_t = (float) System.nanoTime() / 1000000;
+                    sub_t = (int) (end_t - start_t);
                     led_start = true;
                     break;
             }
@@ -179,18 +202,18 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
             }
             //이미지 해상도 줄이기
             Bitmap resized_img = Bitmap.createScaledBitmap(src_img, (int) src_img.getWidth() / 8, (int) src_img.getHeight() / 8, true);
-            Log.i("Tacking Picture::","해상도 줄이기 완료 ");
+            Log.i("Tacking Picture::", "해상도 줄이기 완료 ");
             //썸네일 이미지를 180도 돌려주기
             Matrix mtx = new Matrix();
             mtx.postRotate(180);
             Bitmap rotated_img = Bitmap.createBitmap(resized_img, 0, 0, resized_img.getWidth(), resized_img.getHeight(), mtx, true);
-            Log.i("Tacking Picture::","이미지 회전 완료 ");
+            Log.i("Tacking Picture::", "이미지 회전 완료 ");
             //다른 이미지 처리에서 쓰기 위해서 버퍼에 이미지 복사
             org_img = rotated_img;
-            Log.i("Tacking Picture::","이미지 버퍼에 저장 완료 ");
+            Log.i("Tacking Picture::", "이미지 버퍼에 저장 완료 ");
             //이미지뷰에 처리한 이미지 담기
             capturedImageHolder.setImageBitmap(rotated_img);
-            Log.i("Tacking Picture::","이미지 뷰에 처리한 이미지 담기 완료 ");
+            Log.i("Tacking Picture::", "이미지 뷰에 처리한 이미지 담기 완료 ");
             Log.i("Tacking Picture::", "처리된 이미지 가로 = " + rotated_img.getWidth());
             Log.i("Tacking Picture::", "처리된 이미지 세로 = " + rotated_img.getHeight());
         }
@@ -201,9 +224,9 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         public void run() {
             super.run();
             Log.i("LED::", "LED 쓰레드 실행! ");
-            while(led_run) {
+            while (led_run) {
                 if (led_start) {
-                    for(int j=0; j<4;j++) {
+                    for (int j = 0; j < 4; j++) {
                         for (int i = 0; i < 4; i++) {
                             led_array[2 * i] = 0;
                             led_array[2 * i + 1] = 1;
@@ -211,7 +234,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                         write_LED_Driver(led_array, led_array.length);
                         try {
                             Thread.sleep(200);
-                        } catch(Exception e) {
+                        } catch (Exception e) {
                             e.printStackTrace();
                         }
                         for (int i = 0; i < 4; i++) {
@@ -221,11 +244,11 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                         write_LED_Driver(led_array, led_array.length);
                         try {
                             Thread.sleep(200);
-                        } catch(Exception e) {
+                        } catch (Exception e) {
                             e.printStackTrace();
                         }
                     }
-                    for(int i=0;i<8;i++) {
+                    for (int i = 0; i < 8; i++) {
                         led_array[i] = 0;
                     }
                     write_LED_Driver(led_array, led_array.length);
@@ -241,7 +264,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         public void run() {
             super.run();
             Log.i("SEG::", "SEG 쓰레드 실행! ");
-            while(seg_run) {
+            while (seg_run) {
                 seg_array[0] = (byte) (sub_t % 1000000 / 100000);
                 seg_array[1] = (byte) (sub_t % 100000 / 10000);
                 seg_array[2] = (byte) (sub_t % 10000 / 1000);
@@ -263,17 +286,17 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         int pixel;
         int w = rgbImage.getWidth();
         int h = rgbImage.getHeight();
-        Bitmap grayImage = Bitmap.createBitmap(w,h, rgbImage.getConfig());
+        Bitmap grayImage = Bitmap.createBitmap(w, h, rgbImage.getConfig());
 
-        for(int i = 0; i<w; ++i) { //i++ 하면 안된다.
-            for(int j=0; j<h; ++j) { //j++ 하면 안된다.
-                pixel = rgbImage.getPixel(i,j);
+        for (int i = 0; i < w; ++i) { //i++ 하면 안된다.
+            for (int j = 0; j < h; ++j) { //j++ 하면 안된다.
+                pixel = rgbImage.getPixel(i, j);
                 A = Color.alpha(pixel);
                 R = Color.red(pixel);
                 G = Color.green(pixel);
                 B = Color.blue(pixel);
-                GRAY = (int) (redVal*R + greenVal*G + blueVal*B);
-                grayImage.setPixel(i, j, Color.argb(A,GRAY, GRAY, GRAY));
+                GRAY = (int) (redVal * R + greenVal * G + blueVal * B);
+                grayImage.setPixel(i, j, Color.argb(A, GRAY, GRAY, GRAY));
             }
         }
         return grayImage;
@@ -316,14 +339,14 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         if (open_LED_Driver("/dev/sm9s5422_led") < 0) {
             Toast.makeText(this, "LED Driver Open Failed", Toast.LENGTH_SHORT).show();
             Log.e("LED::", "LED 드라이버 불러오기 실패!");
-        }else Log.i("LED::", "LED 드라이버 불러오기 성공!");
+        } else Log.i("LED::", "LED 드라이버 불러오기 성공!");
         led_run = true;
         led_start = false;
         mLedThread = new LedThread();
         mLedThread.start();
 
         //SEG - 드라이버 불러오고 쓰레드 객체 생성 후 실행
-        if(open_SEG_Driver("/dev/sm9s5422_segment")<0) {
+        if (open_SEG_Driver("/dev/sm9s5422_segment") < 0) {
             Toast.makeText(MainActivity.this, "Driver Open Failed", Toast.LENGTH_SHORT).show();
             Log.e("SEG::", "SEG 드라이버 불러오기 실패!");
         } else Log.i("SEG::", "SEG 드라이버 불러오기 성공!");
@@ -335,6 +358,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         mCamera = getCameraInstance(); //카메라 객체 생성
         mCamera.setDisplayOrientation(180); //카메라 이미지를 180도 뒤집어 준다.
 
+        //프리뷰 관련
         mPreview = new CameraPreview(this, mCamera); //카메라 프리뷰 객체 생성 및 할당
         FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview); //프레임레이아웃 객체 선언,생성,할당
         preview.addView(mPreview); //프리뷰 객체와 프레임레이아웃 연결
@@ -348,6 +372,39 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
             Toast.makeText(MainActivity.this, "Driver Open Failed", Toast.LENGTH_SHORT).show();
             Log.e("GPIO::", "인터럽트 드라이버 읽어오기 실패! ");
         } else Log.i("GPIO::", "인터럽트 드라이버 읽어오기 성공!");
+
+        //opencv 관련
+        Button btn_edge = (Button)findViewById(R.id.button1);
+        btn_edge.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(MainActivity.this, "Edge Detection", Toast.LENGTH_SHORT).show();
+                Log.i("OpenCV::", "엣지 검출 버튼 클릭");
+//                buf_img = Bitmap.createBitmap(org_img);
+//                Utils.bitmapToMat(buf_img, input_img);
+//                output_img = detect_Edge()
+            }
+        });
+        Button btn_traffic = (Button)findViewById(R.id.button2);
+        btn_traffic.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(MainActivity.this, "Traffic Detection", Toast.LENGTH_SHORT).show();
+                Log.i("OpenCV::", "신호등 검출 버튼 클릭");
+//                buf_img = Bitmap.createBitmap(org_img);
+
+            }
+        });
+        Button btn_direction = (Button)findViewById(R.id.button3);
+        btn_direction.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(MainActivity.this, "Direction Detection", Toast.LENGTH_SHORT).show();
+                Log.i("OpenCV::", "방향 표지판 버튼 클릭");
+//                buf_img = Bitmap.createBitmap(org_img);
+
+            }
+        });
     }
 
     @Override
