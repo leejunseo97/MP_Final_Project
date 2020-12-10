@@ -74,13 +74,13 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     private native static int write_SEG_Driver(byte[] data, int length);
 
     static boolean seg_run;
-    SegmentThread mSegThread;
+    static SegmentThread mSegThread;
     static float start_t, end_t;
     static int sub_t;
     static byte[] seg_array = {0, 0, 0, 0, 0, 0};
 
     //GPIO 버튼
-    JNIDriver mDriver;
+    static JNIDriver mDriver;
     boolean mThreadRun = true;
 
     //OpenCL
@@ -382,7 +382,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                 Log.i("OpenCV::", "엣지 검출 버튼 클릭");
 //                buf_img = Bitmap.createBitmap(org_img);
 //                Utils.bitmapToMat(buf_img, input_img);
-//                output_img = detect_Edge()
+//                output_img = detect_Edge();
             }
         });
         Button btn_traffic = (Button)findViewById(R.id.button2);
