@@ -117,6 +117,9 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         seg_run = false;
         mSegThread = null;
         close_SEG_Driver();
+
+        mPreview = null;
+
     }
 
     @Override
@@ -172,7 +175,10 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
                     Toast.makeText(MainActivity.this, "Edge Detection", Toast.LENGTH_SHORT).show();
                     Log.i("OpenCV::", "엣지 검출 시작");
                     buf_img = Bitmap.createBitmap(org_img);
+                    start_t = (float) System.nanoTime() / 1000000;
                     detect_Edge(buf_img);
+                    end_t = (float) System.nanoTime() / 1000000;
+                    sub_t = (int) (end_t - start_t);
                     capturedImageHolder.setImageBitmap(buf_img);
                     Log.i("OpenCV::", "엣지 검출 완료");
                 }
@@ -182,28 +188,20 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         btn_traffic.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-//                if (org_img == null) {
-//                    Toast.makeText(MainActivity.this, "!! Take Picture first !!", Toast.LENGTH_SHORT).show();
-//                    Log.i("OpenCV::", "신호등 검출할 이미지 없음!");
-//                } else {
-//                    Toast.makeText(MainActivity.this, "Traffic Detection", Toast.LENGTH_SHORT).show();
-//                    Log.i("OpenCV::", "신호등 검출 버튼 클릭");
-//                    buf_img = Bitmap.createBitmap(org_img);
-//                    Utils.bitmapToMat(buf_img, buf_mat);
-//                    buf_mat = detect_Traffic(buf_mat);
-//                    Utils.matToBitmap(buf_mat, buf_img);
-//
-//                }
-            }
-        });
-        Button btn_direction = (Button) findViewById(R.id.button3);
-        btn_direction.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(MainActivity.this, "Direction Detection", Toast.LENGTH_SHORT).show();
-                Log.i("OpenCV::", "방향 표지판 버튼 클릭");
-//                buf_img = Bitmap.createBitmap(org_img);
-
+                if (org_img == null) {
+                    Toast.makeText(MainActivity.this, "!! Take Picture first !!", Toast.LENGTH_SHORT).show();
+                    Log.i("OpenCV::", "신호등 검출할 이미지 없음!");
+                } else {
+                    Toast.makeText(MainActivity.this, "Traffic Detection", Toast.LENGTH_SHORT).show();
+                    Log.i("OpenCV::", "신호등 검출 시작");
+                    buf_img = Bitmap.createBitmap(org_img);
+                    start_t = (float) System.nanoTime() / 1000000;
+                    detect_Traffic(buf_img);
+                    end_t = (float) System.nanoTime() / 1000000;
+                    sub_t = (int) (end_t - start_t);
+                    capturedImageHolder.setImageBitmap(buf_img);
+                    Log.i("OpenCV::", "신호등 검출 완료");
+                }
             }
         });
     }
