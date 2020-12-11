@@ -67,6 +67,12 @@ target_link_libraries( # Specifies the target library.
         /Users/leejunseo/Desktop/in_Mac/MP_Class/OpenCL_lib_and_inlclude/lib/libGLES_mali.so ${log-lib} ${jnigraphics-lib} )
 
 target_link_libraries(OpenCV lib_opencv)
+target_link_libraries( # Specifies the target library.
+        OpenCV
+
+        # Links the target librar toㄹ the log library
+        # included in the NDK.
+        /Users/leejunseo/Desktop/in_Mac/MP_Class/OpenCL_lib_and_inlclude/lib/libGLES_mali.so ${log-lib} ${jnigraphics-lib} )
 
 target_include_directories(OpenCLDriver PRIVATE src/main/cpp)
 

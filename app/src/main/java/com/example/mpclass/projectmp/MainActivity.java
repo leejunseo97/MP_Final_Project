@@ -43,16 +43,23 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         System.loadLibrary("OpenCV");
     }
 
-    //OpenCV
-    private native static Mat detect_Edge(Mat mat);
+    //OpenCL
+    public native Bitmap GaussianBlurBitmap(Bitmap bitmap);
 
-    private native static Mat detect_Traffic(Mat mat);
+    public native Bitmap GaussianBlurGPU(Bitmap bitmap);
 
-    private native static Mat detect_Direction(Mat mat);
+    //이미지 버퍼
+    static Bitmap org_img;
+    static Bitmap buf_img;
 
-    private static Mat input_img;
-    private static Mat output_img;
+    //카메라 관련
+    private static Camera mCamera;
+    private static CameraPreview mPreview;
+    private static ImageView capturedImageHolder;
 
+    //GPIO 버튼
+    static JNIDriver mDriver;
+    boolean mThreadRun = true;
 
     //LED
     private native static int open_LED_Driver(String path);
@@ -79,23 +86,12 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
     static int sub_t;
     static byte[] seg_array = {0, 0, 0, 0, 0, 0};
 
-    //GPIO 버튼
-    static JNIDriver mDriver;
-    boolean mThreadRun = true;
+    //OpenCV
+    private native Bitmap detect_Edge(Bitmap bitmap);
 
-    //OpenCL
-    public native Bitmap GaussianBlurBitmap(Bitmap bitmap);
+    private native Bitmap detect_Traffic(Bitmap bitmap);
 
-    public native Bitmap GaussianBlurGPU(Bitmap bitmap);
-
-    //이미지 버퍼
-    static Bitmap org_img;
-    static Bitmap buf_img;
-
-    //카메라 관련
-    private static Camera mCamera;
-    private static CameraPreview mPreview;
-    private static ImageView capturedImageHolder;
+    private native Bitmap detect_Direction(Bitmap bitmap);
 
 
     @Override
@@ -105,16 +101,118 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
 
     }
 
-    //실제 카메라를 할당해주는 함수
-    public static Camera getCameraInstance() {
-        Camera c = null;
-        try {
-            c = Camera.open();
-            Log.i("Camera::", "Camera.open() 성공 ");
-        } catch (Exception e) {
-            Log.e("Camera::", "getCameraInstance()에러! ");
-        }
-        return c;
+    @Override
+    protected void onPause() {
+        super.onPause();
+        releaseMediaRecorder();
+        releaseCamera();
+        mDriver.close();
+
+        //LED
+        led_run = false;
+        mLedThread = null;
+        close_LED_Driver();
+
+        //7SEG
+        seg_run = false;
+        mSegThread = null;
+        close_SEG_Driver();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        //LED - 드라이버 불러오고 쓰레드 객체 생성 후 실행
+        if (open_LED_Driver("/dev/sm9s5422_led") < 0) {
+            Toast.makeText(this, "LED Driver Open Failed", Toast.LENGTH_SHORT).show();
+            Log.e("LED::", "LED 드라이버 불러오기 실패!");
+        } else Log.i("LED::", "LED 드라이버 불러오기 성공!");
+        led_run = true;
+        led_start = false;
+        mLedThread = new LedThread();
+        mLedThread.start();
+
+        //SEG - 드라이버 불러오고 쓰레드 객체 생성 후 실행
+        if (open_SEG_Driver("/dev/sm9s5422_segment") < 0) {
+            Toast.makeText(MainActivity.this, "Driver Open Failed", Toast.LENGTH_SHORT).show();
+            Log.e("SEG::", "SEG 드라이버 불러오기 실패!");
+        } else Log.i("SEG::", "SEG 드라이버 불러오기 성공!");
+        seg_run = true;
+        mSegThread = new SegmentThread();
+        mSegThread.start();
+
+        //카메라 관련
+        mCamera = getCameraInstance(); //카메라 객체 생성
+        mCamera.setDisplayOrientation(180); //카메라 이미지를 180도 뒤집어 준다.
+
+        //프리뷰 관련
+        mPreview = new CameraPreview(this, mCamera); //카메라 프리뷰 객체 생성 및 할당
+        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview); //프레임레이아웃 객체 선언,생성,할당
+        preview.addView(mPreview); //프리뷰 객체와 프레임레이아웃 연결
+
+        capturedImageHolder = (ImageView) findViewById(R.id.processed_image); //이미지뷰 객체 생성 및 할당
+
+        //GPIO 버튼 이용 인터럽트 관련
+        mDriver = new JNIDriver();
+        mDriver.setListener(this);
+        if (mDriver.open("/dev/sm9s5422_interrupt") < 0) {
+            Toast.makeText(MainActivity.this, "Driver Open Failed", Toast.LENGTH_SHORT).show();
+            Log.e("GPIO::", "인터럽트 드라이버 읽어오기 실패! ");
+        } else Log.i("GPIO::", "인터럽트 드라이버 읽어오기 성공!");
+
+        //opencv 관련
+        Button btn_edge = (Button) findViewById(R.id.button1);
+        btn_edge.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (org_img == null) {
+                    Toast.makeText(MainActivity.this, "!! Take Picture first !!", Toast.LENGTH_SHORT).show();
+                    Log.i("OpenCV::", "엣지 검출할 이미지 없음!");
+                } else {
+                    Toast.makeText(MainActivity.this, "Edge Detection", Toast.LENGTH_SHORT).show();
+                    Log.i("OpenCV::", "엣지 검출 시작");
+                    buf_img = Bitmap.createBitmap(org_img);
+                    detect_Edge(buf_img);
+                    capturedImageHolder.setImageBitmap(buf_img);
+                    Log.i("OpenCV::", "엣지 검출 완료");
+                }
+            }
+        });
+        Button btn_traffic = (Button) findViewById(R.id.button2);
+        btn_traffic.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+//                if (org_img == null) {
+//                    Toast.makeText(MainActivity.this, "!! Take Picture first !!", Toast.LENGTH_SHORT).show();
+//                    Log.i("OpenCV::", "신호등 검출할 이미지 없음!");
+//                } else {
+//                    Toast.makeText(MainActivity.this, "Traffic Detection", Toast.LENGTH_SHORT).show();
+//                    Log.i("OpenCV::", "신호등 검출 버튼 클릭");
+//                    buf_img = Bitmap.createBitmap(org_img);
+//                    Utils.bitmapToMat(buf_img, buf_mat);
+//                    buf_mat = detect_Traffic(buf_mat);
+//                    Utils.matToBitmap(buf_mat, buf_img);
+//
+//                }
+            }
+        });
+        Button btn_direction = (Button) findViewById(R.id.button3);
+        btn_direction.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(MainActivity.this, "Direction Detection", Toast.LENGTH_SHORT).show();
+                Log.i("OpenCV::", "방향 표지판 버튼 클릭");
+//                buf_img = Bitmap.createBitmap(org_img);
+
+            }
+        });
+    }
+
+    @Override
+    public void onReceive(int val) {
+        Message text = Message.obtain();
+        text.arg1 = val;
+        handler.sendMessage(text);
     }
 
     //인터럽트 핸들러
@@ -186,6 +284,18 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
             }
         }
     };
+
+    //실제 카메라를 할당해주는 함수
+    public static Camera getCameraInstance() {
+        Camera c = null;
+        try {
+            c = Camera.open();
+            Log.i("Camera::", "Camera.open() 성공 ");
+        } catch (Exception e) {
+            Log.e("Camera::", "getCameraInstance()에러! ");
+        }
+        return c;
+    }
 
     //콜백함수 정의 - 찍은 사진의 해상도를 줄여서 이미지뷰에 출력
     PictureCallback pictureCallback = new PictureCallback() {
@@ -302,6 +412,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         return grayImage;
     }
 
+
     //카메라 자원 반환 관련
     private void releaseMediaRecorder() {
         mCamera.lock();
@@ -314,103 +425,4 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         }
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        releaseMediaRecorder();
-        releaseCamera();
-        mDriver.close();
-
-        //LED
-        led_run = false;
-        mLedThread = null;
-        close_LED_Driver();
-
-        //SEG
-        seg_run = false;
-        mSegThread = null;
-        close_SEG_Driver();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        //LED - 드라이버 불러오고 쓰레드 객체 생성 후 실행
-        if (open_LED_Driver("/dev/sm9s5422_led") < 0) {
-            Toast.makeText(this, "LED Driver Open Failed", Toast.LENGTH_SHORT).show();
-            Log.e("LED::", "LED 드라이버 불러오기 실패!");
-        } else Log.i("LED::", "LED 드라이버 불러오기 성공!");
-        led_run = true;
-        led_start = false;
-        mLedThread = new LedThread();
-        mLedThread.start();
-
-        //SEG - 드라이버 불러오고 쓰레드 객체 생성 후 실행
-        if (open_SEG_Driver("/dev/sm9s5422_segment") < 0) {
-            Toast.makeText(MainActivity.this, "Driver Open Failed", Toast.LENGTH_SHORT).show();
-            Log.e("SEG::", "SEG 드라이버 불러오기 실패!");
-        } else Log.i("SEG::", "SEG 드라이버 불러오기 성공!");
-        seg_run = true;
-        mSegThread = new SegmentThread();
-        mSegThread.start();
-
-        //카메라 관련
-        mCamera = getCameraInstance(); //카메라 객체 생성
-        mCamera.setDisplayOrientation(180); //카메라 이미지를 180도 뒤집어 준다.
-
-        //프리뷰 관련
-        mPreview = new CameraPreview(this, mCamera); //카메라 프리뷰 객체 생성 및 할당
-        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview); //프레임레이아웃 객체 선언,생성,할당
-        preview.addView(mPreview); //프리뷰 객체와 프레임레이아웃 연결
-
-        capturedImageHolder = (ImageView) findViewById(R.id.processed_image); //이미지뷰 객체 생성 및 할당
-
-        //GPIO 버튼 이용 인터럽트 관련
-        mDriver = new JNIDriver();
-        mDriver.setListener(this);
-        if (mDriver.open("/dev/sm9s5422_interrupt") < 0) {
-            Toast.makeText(MainActivity.this, "Driver Open Failed", Toast.LENGTH_SHORT).show();
-            Log.e("GPIO::", "인터럽트 드라이버 읽어오기 실패! ");
-        } else Log.i("GPIO::", "인터럽트 드라이버 읽어오기 성공!");
-
-        //opencv 관련
-        Button btn_edge = (Button)findViewById(R.id.button1);
-        btn_edge.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(MainActivity.this, "Edge Detection", Toast.LENGTH_SHORT).show();
-                Log.i("OpenCV::", "엣지 검출 버튼 클릭");
-//                buf_img = Bitmap.createBitmap(org_img);
-//                Utils.bitmapToMat(buf_img, input_img);
-//                output_img = detect_Edge();
-            }
-        });
-        Button btn_traffic = (Button)findViewById(R.id.button2);
-        btn_traffic.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(MainActivity.this, "Traffic Detection", Toast.LENGTH_SHORT).show();
-                Log.i("OpenCV::", "신호등 검출 버튼 클릭");
-//                buf_img = Bitmap.createBitmap(org_img);
-
-            }
-        });
-        Button btn_direction = (Button)findViewById(R.id.button3);
-        btn_direction.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(MainActivity.this, "Direction Detection", Toast.LENGTH_SHORT).show();
-                Log.i("OpenCV::", "방향 표지판 버튼 클릭");
-//                buf_img = Bitmap.createBitmap(org_img);
-
-            }
-        });
-    }
-
-    @Override
-    public void onReceive(int val) {
-        Message text = Message.obtain();
-        text.arg1 = val;
-        handler.sendMessage(text);
-    }
 }
