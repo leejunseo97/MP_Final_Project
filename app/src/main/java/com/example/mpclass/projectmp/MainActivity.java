@@ -135,7 +135,7 @@ public class MainActivity extends AppCompatActivity implements JNIListener {
         mLedThread = new LedThread();
         mLedThread.start();
 
-        //SEG - 드라이버 불러오고 쓰레드 객체 생성 후 실행
+        //7SEG - 드라이버 불러오고 쓰레드 객체 생성 후 실행
         if (open_SEG_Driver("/dev/sm9s5422_segment") < 0) {
             Toast.makeText(MainActivity.this, "Driver Open Failed", Toast.LENGTH_SHORT).show();
             Log.e("SEG::", "SEG 드라이버 불러오기 실패!");

@@ -266,10 +266,3 @@ Java_com_example_mpclass_projectmp_MainActivity_detect_1Traffic(JNIEnv *env, job
     free(output_Pixels);
     return bitmap;
 }
-
-extern "C"
-JNIEXPORT jobject JNICALL
-Java_com_example_mpclass_projectmp_MainActivity_detect_1Direction(JNIEnv *env, jobject thiz,
-                                                                  jobject bitmap) {
-    // TODO: implement detect_Direction()
-}
